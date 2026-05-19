@@ -94,21 +94,10 @@ map.data <- function(data,
     map_width <- 900
     map_height <- 700
 
-    center_lon <- as.numeric(mean(xlim))
-    center_lat <- as.numeric(mean(ylim))
-    center_lat <- max(min(center_lat, 85), -85)
-
-    lon_range <- max(diff(xlim), 1e-06)
-    lat_range <- max(diff(ylim), 1e-06)
-
-    zoom_lon <- log2((map_width * 360) / (lon_range * 512))
-    zoom_lat <- log2((map_height * 170) / (lat_range * 512))
-    zoom_level <- max(0, min(22, floor(min(zoom_lon, zoom_lat))))
-
     mapbox_url <- paste0(
-      "https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/",
-      center_lon, ",", center_lat, ",", zoom_level,
-      "/", map_width, "x", map_height,
+      "https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/[",
+      xlim[1], ",", ylim[1], ",", xlim[2], ",", ylim[2],
+      "]/", map_width, "x", map_height,
       "?access_token=", mapbox_token
     )
 
@@ -125,37 +114,9 @@ map.data <- function(data,
         map_img <- magick::image_read(map_img_file)
         map_img <- as.raster(map_img)
 
-        r_earth <- 6378137
-        world_size <- 512 * (2 ^ zoom_level)
-        m_per_px <- (2 * pi * r_earth) / world_size
-
-        center_geom <- sf::st_sfc(sf::st_point(c(center_lon, center_lat)), crs = 4326)
-        center_3857 <- sf::st_transform(center_geom, 3857)
-        center_xy <- as.numeric(sf::st_coordinates(center_3857)[1, ])
-
-        half_w_m <- as.numeric((map_width / 2) * m_per_px)
-        half_h_m <- as.numeric((map_height / 2) * m_per_px)
-
-        bbox_vals <- c(
-          xmin = center_xy[1] - half_w_m,
-          xmax = center_xy[1] + half_w_m,
-          ymin = center_xy[2] - half_h_m,
-          ymax = center_xy[2] + half_h_m
-        )
-
-        if(anyNA(bbox_vals) || any(!is.finite(bbox_vals)) || bbox_vals["xmin"] >= bbox_vals["xmax"] || bbox_vals["ymin"] >= bbox_vals["ymax"]) {
-          stop("Invalid MapBox image bbox values.")
-        }
-
-        img_bbox_3857 <- sf::st_as_sfc(sf::st_bbox(setNames(as.numeric(bbox_vals), names(bbox_vals)), crs = sf::st_crs(3857)))
-        img_bbox_4326 <- sf::st_bbox(sf::st_transform(img_bbox_3857, 4326))
-
-        plot(NA, xlim = c(img_bbox_4326["xmin"], img_bbox_4326["xmax"]),
-             ylim = c(img_bbox_4326["ymin"], img_bbox_4326["ymax"]),
+        plot(NA, xlim = xlim, ylim = ylim,
              xlab = "Longitude", ylab = "Latitude", axes = TRUE, asp = 1)
-        rasterImage(map_img,
-                    img_bbox_4326["xmin"], img_bbox_4326["ymin"],
-                    img_bbox_4326["xmax"], img_bbox_4326["ymax"])
+        rasterImage(map_img, xlim[1], ylim[1], xlim[2], ylim[2])
         TRUE
       }, error = function(e) FALSE)
     }
