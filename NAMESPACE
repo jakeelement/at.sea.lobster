@@ -3,6 +3,7 @@
 export(check.table)
 export(export.tables)
 export(input.trip)
+export(map.data)
 export(map.sets)
 export(oracle.upload)
 import(DBI)
